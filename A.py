@@ -10,19 +10,28 @@ screen_height = 600
 screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption("Run and Collect")
 
-# Load and resize background images to match the screen size
-background1_image = pygame.image.load("background1.jpeg")
-background1_image = pygame.transform.scale(background1_image, (screen_width, screen_height))
+# Load and resize the background image to match the screen size
+background_image = pygame.image.load("background1.jpeg")
+background_image = pygame.transform.scale(background_image, (screen_width, screen_height))
 
-background2_image = pygame.image.load("background2.jpeg")
-background2_image = pygame.transform.scale(background2_image, (screen_width, screen_height))
+# Define a function to handle scrolling backgrounds
+def update_background():
+    global background_x
+    
+    # Move the background image to the left
+    background_x -= background_speed
+    
+    # If the background image moves off screen, reset its position
+    if background_x <= -screen_width:
+        background_x = 0
+    
+    # Draw the background on the screen
+    screen.blit(background_image, (background_x, 0))
+    screen.blit(background_image, (background_x + screen_width, 0))
 
-# Load images and resize them
+# Load and resize the player image
 player_image = pygame.image.load("player.png")
 player_image = pygame.transform.scale(player_image, (50, 150))
-
-person_image = pygame.image.load("person.png")
-person_image = pygame.transform.scale(person_image, (50, 150))
 
 # Load item images and resize them
 item_images = [
@@ -49,20 +58,24 @@ base_height = 100  # Height of the base (ground)
 # Define the maximum jump height
 MAX_JUMP_HEIGHT = 2  # Number of times the player can jump
 
+# Background position and speed
+background_x = 0
+background_speed = 3  # Adjust the speed as desired
+
 # Define Player class
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
         self.image = player_image
         self.rect = self.image.get_rect()
-        self.rect.x = 50  # Starting x position
-        self.rect.y = screen_height - self.rect.height - base_height  # Starting y position
+        # Set starting position to the middle of the game screen
+        self.rect.x = screen_width // 2 - self.rect.width // 2
+        self.rect.y = screen_height - self.rect.height - base_height
         self.jump_power = 15  # Initial jump power
         self.gravity = 1  # Gravity effect on player
         self.velocity_y = 0  # Vertical velocity for player movement
         self.jump_count = 0  # Track the number of jumps performed
         self.collected_items = []  # List to keep track of collected items
-        self.humanity_score = 0  # Humanity score for the player
 
     def update(self):
         # Apply gravity
@@ -77,7 +90,7 @@ class Player(pygame.sprite.Sprite):
 
         # Handle jumping
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_SPACE]:
+        if keys[pygame.K_SPACE] or keys[pygame.K_UP]:
             # Allow double jump (up to MAX_JUMP_HEIGHT jumps)
             if self.jump_count < MAX_JUMP_HEIGHT:
                 self.velocity_y = -self.jump_power
@@ -86,29 +99,6 @@ class Player(pygame.sprite.Sprite):
         # Handle stopping (player stops when the 's' key is pressed)
         if keys[pygame.K_s]:
             self.velocity_y = 0  # Stop the player if 's' key is pressed
-
-    def give_items(self, person):
-        # Give collected items to the person and increase humanity score
-        items_given = len(self.collected_items)
-        if items_given > 0:
-            self.humanity_score += items_given  # Increase humanity score
-            self.collected_items = []  # Clear the list of collected items
-
-# Define Person class
-class Person(pygame.sprite.Sprite):
-    def __init__(self):
-        super().__init__()
-        self.image = person_image
-        self.rect = self.image.get_rect()
-        self.rect.x = random.randint(screen_width - 300, screen_width)  # Random x position in the right side
-        self.rect.y = screen_height - base_height - self.rect.height  # Make the person stand on the ground
-        self.speed = 2  # Speed of the person moving towards the player
-
-    def update(self, player):
-        # Move towards the player if they are on the ground
-        if player.rect.y == screen_height - player.rect.height - base_height:
-            if self.rect.x > player.rect.x:
-                self.rect.x -= self.speed  # Move left towards the player
 
 # Define Item class
 class Item(pygame.sprite.Sprite):
@@ -130,7 +120,6 @@ class Item(pygame.sprite.Sprite):
 # Create groups
 all_sprites = pygame.sprite.Group()
 item_group = pygame.sprite.Group()
-person_group = pygame.sprite.Group()
 
 # Create player
 player = Player()
@@ -142,17 +131,8 @@ game_started = False
 # Set up game clock
 clock = pygame.time.Clock()
 
-# Timer for background change
-time_elapsed = 0
-
-# Variable to keep track of the current background
-current_background = 1
-
 # Timer for spawning items
 item_spawn_timer = 0
-
-# Timer for spawning persons
-person_spawn_timer = 0
 
 # Main loop
 running = True
@@ -190,8 +170,7 @@ while running:
         # Update player
         player.update()
 
-        # Update persons and items
-        person_group.update(player)
+        # Update items
         item_group.update()
         
         # Spawn new item periodically
@@ -202,33 +181,14 @@ while running:
             item_group.add(item)
             item_spawn_timer = 0
         
-        # Spawn new person periodically
-        person_spawn_timer += clock.get_time()
-        if person_spawn_timer >= 10000:  # Every 10 seconds
-            person = Person()
-            all_sprites.add(person)
-            person_group.add(person)
-            person_spawn_timer = 0
-        
         # Check for collisions between player and items
         collisions = pygame.sprite.spritecollide(player, item_group, True)
         if collisions:
             # Add collected items to player's collected_items list
             player.collected_items.extend(collisions)
         
-        # Check for collisions between player and person
-        person_collisions = pygame.sprite.spritecollide(player, person_group, False)
-        if person_collisions:
-            # Stop the player and give items to the person
-            player.velocity_y = 0  # Stop the player
-            for person in person_collisions:
-                player.give_items(person)  # Give items to the person
-
-        # Draw the current background
-        if current_background == 1:
-            screen.blit(background1_image, (0, 0))
-        else:
-            screen.blit(background2_image, (0, 0))
+        # Update the background
+        update_background()
         
         # Draw all sprites
         all_sprites.draw(screen)
@@ -240,22 +200,10 @@ while running:
         collected_text = font.render(f"Collected: {len(player.collected_items)}", True, BLACK)
         screen.blit(collected_text, (10, 10))
         
-        # Display humanity score on the right side of the screen
-        humanity_text = font.render(f"Humanity Score: {player.humanity_score}", True, BLACK)
-        screen.blit(humanity_text, (screen_width - humanity_text.get_width() - 10, 10))
-        
         # Update display
         pygame.display.flip()
         
         # Set frame rate
         clock.tick(60)
-
-        # Update the timer and switch background every 2 minutes (120 seconds)
-        time_elapsed += clock.get_time() / 1000  # Update time elapsed in seconds
-        if time_elapsed >= 120:
-            # Switch background
-            current_background = 2 if current_background == 1 else 1
-            time_elapsed = 0
         
-# Quit Pygame
 pygame.quit()
