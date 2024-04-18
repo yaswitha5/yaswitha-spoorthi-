@@ -1,7 +1,6 @@
 import pygame
 import sys
 import random
-from pygame.locals import *
 from button import Button
 
 # Initialize Pygame and the mixer module for sound
@@ -9,27 +8,13 @@ pygame.init()
 pygame.mixer.init()
 
 # Screen settings
-# To set the screen to full screen, use the FULLSCREEN flag
-SCREEN = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-screen_width, screen_height = SCREEN.get_size()  # Get the screen size for the full-screen mode
+screen_width, screen_height = 1280, 720
+SCREEN = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption("Run and Collect")
-
-base_height = 150 # Height of the base (ground)
 
 # Load images and resize them
 background_image = pygame.image.load("background.jpeg")
 background_image = pygame.transform.scale(background_image, (screen_width, screen_height))
-
-player_image = pygame.image.load("player.png")
-player_image = pygame.transform.scale(player_image, (50, 150))
-
-# Load ground image and resize it
-ground_image = pygame.image.load("ground.png")
-ground_image = pygame.transform.scale(ground_image, (screen_width, base_height))
-
-# Ground image position
-ground_x = 0  # Initial x-position for the ground image
-ground_speed = 3  # Speed at which the ground moves to the left
 
 item_images = [pygame.image.load("apple.png"), pygame.image.load("banana.png"), pygame.image.load("orange.png"), pygame.image.load("cherry.png")]
 item_images = [pygame.transform.scale(img, (30, 30)) for img in item_images]
@@ -43,7 +28,6 @@ obstacle_image = pygame.transform.scale(obstacle_image, (50, 50))
 # Define colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-GREEN = (0, 255, 0)
 BASE_COLOR = (0, 128, 0)
 
 # Define fonts
@@ -54,6 +38,7 @@ font = get_font(36)
 button_font = get_font(48)
 
 # Game settings and state variables
+base_height = 100 # Height of the base (ground)
 background_x = 0
 background_speed = 3
 MAX_JUMP_HEIGHT = 1
@@ -63,24 +48,50 @@ pygame.mixer.music.load("background_music.mp3")
 pygame.mixer.music.play(-1)
 pygame.mixer.music.set_volume(0.5)
 
-# Define Y-coordinates for placing items, boxes, and obstacles
-available_y_coordinates = list(range(base_height, screen_height - base_height, 50))
-
 # Define Player class
 class Player(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, run_sprite_sheet, jump_sprite_sheet):
         super().__init__()
-        self.image = player_image
+        # Load sprite sheets and resize them
+        run_sprite_sheet = pygame.image.load(run_sprite_sheet)
+        jump_sprite_sheet = pygame.image.load(jump_sprite_sheet)
+        
+        # Resize sprite sheets for larger player sprite
+        new_width = 1 * run_sprite_sheet.get_width()  # Scale the width by 2 (change this as needed)
+        new_height = 1 * run_sprite_sheet.get_height()  # Scale the height by 2 (change this as needed)
+        run_sprite_sheet = pygame.transform.scale(run_sprite_sheet, (new_width, new_height))
+        jump_sprite_sheet = pygame.transform.scale(jump_sprite_sheet, (new_width, new_height))
+        
+        # Load animation frames
+        self.run_frames = self.load_animation_frames(run_sprite_sheet, 8)
+        self.jump_frames = self.load_animation_frames(jump_sprite_sheet, 11)
+        
+        self.current_frames = self.run_frames
+        self.image_index = 0
+        self.image = self.current_frames[self.image_index]
         self.rect = self.image.get_rect()
-        # Set starting position to the middle of the game screen
+        
+        # Set starting position (adjust as needed)
         self.rect.x = screen_width // 2 - self.rect.width // 2
         self.rect.y = screen_height - self.rect.height - base_height
-        self.jump_power = 35  # Initial jump power
-        self.gravity = 1  # Gravity effect on player
-        self.velocity_y = 0  # Vertical velocity for player movement
-        self.jump_count = 0  # Track the number of jumps performed
-        self.collected_items = []  # List to keep track of collected items
-        self.is_stopped = False  # Flag to check if player is stopped
+        
+        # Other player attributes...
+        self.jump_power = 30  # Adjust as needed
+        self.gravity = 1  # Adjust as needed
+        self.velocity_y = 0
+        self.jump_count = 0
+        self.is_stopped = False
+
+    def load_animation_frames(self, sprite_sheet, num_frames):
+        # Define the dimensions of each frame in the sprite sheet
+        frame_width = sprite_sheet.get_width() // num_frames
+        frame_height = sprite_sheet.get_height()
+        frames = []
+        # Extract individual frames from sprite sheet
+        for i in range(num_frames):
+            frame = sprite_sheet.subsurface((i * frame_width, 0, frame_width, frame_height))
+            frames.append(frame)
+        return frames
 
     def update(self):
         # Apply gravity
@@ -102,23 +113,37 @@ class Player(pygame.sprite.Sprite):
                 if self.jump_count < MAX_JUMP_HEIGHT:
                     self.velocity_y = -self.jump_power
                     self.jump_count += 1
+                    # Set jumping animation
+                    self.current_frames = self.jump_frames
+                    # Reset animation index
+                    self.image_index = 0
 
-        # Handle stopping (player stops when the 's' key is pressed near a box)
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_s]:
-            self.is_stopped = True
-        else:
-            self.is_stopped = False
+        # Handle running animation
+        if not self.is_stopped:
+            self.current_frames = self.run_frames
+
+        # Update animation frames
+        self.play_animation()
+
+    def play_animation(self):
+        # Implement logic to play animation by cycling through frames
+        animation_speed = 0.1  # Adjust this value to control animation speed (in seconds)
+
+        # Calculate frame index based on animation speed and current time
+        frame_index = int((pygame.time.get_ticks() // (animation_speed * 1000)) % len(self.current_frames))
+
+        # Update self.image_index to change frames
+        self.image_index = frame_index
+        self.image = self.current_frames[self.image_index]
 
 # Define Item class
 class Item(pygame.sprite.Sprite):
-    def __init__(self, y_positions):
+    def __init__(self):
         super().__init__()
         self.image = random.choice(item_images)
         self.rect = self.image.get_rect()
         self.rect.x = screen_width  # Starting x position
-        self.rect.y = random.choice(y_positions)  # Randomly select y position from available coordinates
-        y_positions.remove(self.rect.y)  # Remove the chosen y position from available coordinates
+        self.rect.y = random.randint(base_height, screen_height - base_height - self.rect.height)  # Random y position
 
     def update(self):
         # Move item to the left
@@ -135,8 +160,7 @@ class Box(pygame.sprite.Sprite):
         self.image = box_image
         self.rect = self.image.get_rect()
         self.rect.x = screen_width  # Starting x position
-        # Set Y-coordinate to ground level
-        self.rect.y = screen_height - base_height - self.rect.height
+        self.rect.y = screen_height - base_height - self.rect.height  # Place box on the ground
 
     def update(self):
         # Move box to the left
@@ -144,19 +168,16 @@ class Box(pygame.sprite.Sprite):
         
         # Remove box if it goes off screen
         if self.rect.x < -self.rect.width:
-            # Increment missed donations counter
-            global missed_donations
-            missed_donations += 1
             self.kill()
 
+# Define Obstacle class
 class Obstacle(pygame.sprite.Sprite):
     def __init__(self, player):
         super().__init__()
         self.image = obstacle_image
         self.rect = self.image.get_rect()
         self.rect.x = screen_width  # Starting x position
-        # Set Y-coordinate to ground level
-        self.rect.y = screen_height - base_height - self.rect.height
+        self.rect.y = screen_height - base_height - self.rect.height  # Place obstacle on the ground
         self.player = player  # Reference to the player object
 
     def update(self):
@@ -176,7 +197,7 @@ class Obstacle(pygame.sprite.Sprite):
 
 # Define a function to handle scrolling backgrounds
 def update_background():
-    global background_x, ground_x
+    global background_x
     
     # Move the background image to the left
     background_x -= background_speed
@@ -188,17 +209,6 @@ def update_background():
     # Draw the background on the screen
     SCREEN.blit(background_image, (background_x, 0))
     SCREEN.blit(background_image, (background_x + screen_width, 0))
-    
-    # Move the ground image to the left
-    ground_x -= ground_speed
-    
-    # If the ground image moves off screen, reset its position
-    if ground_x <= -screen_width:
-        ground_x += screen_width  # Adjusting position to wrap around correctly
-    
-    # Draw the ground image at the bottom of the screen
-    SCREEN.blit(ground_image, (ground_x, screen_height - base_height))
-    SCREEN.blit(ground_image, (ground_x + screen_width, screen_height - base_height))
 
 # Create groups for sprites
 all_sprites = pygame.sprite.Group()
@@ -207,7 +217,7 @@ box_group = pygame.sprite.Group()
 obstacle_group = pygame.sprite.Group()  # New group for obstacles
 
 # Create player
-player = Player()
+player = Player("run.png", "jump.png")
 all_sprites.add(player)
 
 # Game state flags and variables
@@ -224,9 +234,9 @@ obstacle_spawn_timer = 0
 donations_made = 0
 missed_donations = 0
 
-def is_overlapping(new_sprite, existing_group):
-    for existing_sprite in existing_group:
-        if new_sprite.rect.colliderect(existing_sprite.rect):
+def is_overlapping(sprite, groups):
+    for group in groups:
+        if pygame.sprite.spritecollideany(sprite, group):
             return True
     return False
 
@@ -239,9 +249,6 @@ def play():
     donations_made = 0
     missed_donations = 0
     player.collected_items = []
-    
-    # Reset available Y-coordinates
-    y_positions = list(range(base_height, screen_height - base_height, 50))
     
     # Start game loop
     while not game_over:
@@ -288,29 +295,29 @@ def play():
             'obstacle': 3000  # Spawn an obstacle every 3 seconds
         }
         
-        # Reset available Y-coordinates for each iteration
-        y_positions = list(range(base_height, screen_height - base_height, 50))
-        
         # Item spawn
         item_spawn_timer += clock.get_time()
         if item_spawn_timer >= spawn_intervals['item']:
-            if y_positions:
-                item = Item(y_positions)
+            item = Item()
+            # Check if the item overlaps with existing boxes or obstacles
+            if not is_overlapping(item, [box_group, obstacle_group]):
                 all_sprites.add(item)
                 item_group.add(item)
-                item_spawn_timer = 0
-        
+            else:
+                # If the item overlaps, skip adding it to the game and destroy it
+                item.kill()
+            item_spawn_timer = 0
+
         # Box spawn
         box_spawn_timer += clock.get_time()
         if box_spawn_timer >= spawn_intervals['box']:
             box = Box()
-            # Check for overlap with existing obstacles
-            if not is_overlapping(box, obstacle_group):
+            # Check if the box overlaps with existing items or obstacles
+            if not is_overlapping(box, [item_group, obstacle_group]):
                 all_sprites.add(box)
                 box_group.add(box)
             else:
-                # Optionally, you can adjust box spawn position or skip spawning
-                # For now, we'll skip spawning the box if it overlaps
+                # If the box overlaps, skip adding it to the game and destroy it
                 box.kill()
             box_spawn_timer = 0
 
@@ -318,16 +325,15 @@ def play():
         obstacle_spawn_timer += clock.get_time()
         if obstacle_spawn_timer >= spawn_intervals['obstacle']:
             obstacle = Obstacle(player)
-            # Check for overlap with existing boxes
-            if not is_overlapping(obstacle, box_group):
+            # Check if the obstacle overlaps with existing items or boxes
+            if not is_overlapping(obstacle, [item_group, box_group]):
                 all_sprites.add(obstacle)
                 obstacle_group.add(obstacle)
             else:
-                # Optionally, you can adjust obstacle spawn position or skip spawning
-                # For now, we'll skip spawning the obstacle if it overlaps
+                # If the obstacle overlaps, skip adding it to the game and destroy it
                 obstacle.kill()
             obstacle_spawn_timer = 0
-
+        
         # Check if the number of missed boxes has reached 3
         if missed_donations >= 3:
             game_over = True
@@ -438,15 +444,15 @@ def main_menu():
         MENU_MOUSE_POS = pygame.mouse.get_pos()
         
         MENU_TEXT = get_font(100).render("RUN AND COLLECT", True, "#b68f40")
-        MENU_RECT = MENU_TEXT.get_rect(center=(screen_width // 2, 200))
+        MENU_RECT = MENU_TEXT.get_rect(center=(screen_width // 2, 100))
         
-        PLAY_BUTTON = Button(image=pygame.image.load("play.jpeg"), pos=(screen_width // 2, 400), 
+        PLAY_BUTTON = Button(image=pygame.image.load("play.jpeg"), pos=(screen_width // 2, 250), 
                             text_input="PLAY", font=get_font(75), base_color="#d7fcd4", hovering_color="White")
         
-        OPTIONS_BUTTON = Button(image=pygame.image.load("options.jpeg"), pos=(screen_width // 2, 600), 
+        OPTIONS_BUTTON = Button(image=pygame.image.load("options.jpeg"), pos=(screen_width // 2, 400), 
                             text_input="OPTIONS", font=get_font(75), base_color="#d7fcd4", hovering_color="White")
         
-        QUIT_BUTTON = Button(image=pygame.image.load("quit.jpeg"), pos=(screen_width // 2, 800), 
+        QUIT_BUTTON = Button(image=pygame.image.load("quit.jpeg"), pos=(screen_width // 2, 550), 
                             text_input="QUIT", font=get_font(75), base_color="#d7fcd4", hovering_color="White")
         
         SCREEN.blit(MENU_TEXT, MENU_RECT)
