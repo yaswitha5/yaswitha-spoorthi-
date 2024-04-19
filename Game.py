@@ -13,7 +13,7 @@ SCREEN = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption("Run and Collect")
 
 # Load images and resize them
-background_image = pygame.image.load("background1.png")
+background_image = pygame.image.load("background.jpeg")
 background_image = pygame.transform.scale(background_image, (screen_width, screen_height))
 
 item_images = [pygame.image.load("apple.png"), pygame.image.load("banana.png"), pygame.image.load("coins.png"), pygame.image.load("cherry.png")]
@@ -50,6 +50,13 @@ pygame.mixer.music.load("background_music.mp3")
 pygame.mixer.music.play(-1)
 pygame.mixer.music.set_volume(0.5)
 
+# Load the sound file when the player is out
+player_out_sound = pygame.mixer.Sound("background_music.mp3")
+
+# Set the volume for the sound (optional)
+player_out_sound.set_volume(0.5)  # Adjust volume as needed
+
+
 # Global variable to track the state of the music
 music_playing = True
 
@@ -57,15 +64,8 @@ music_playing = True
 class Player(pygame.sprite.Sprite):
     def __init__(self, run_sprite_sheet, jump_sprite_sheet):
         super().__init__()
-        # Load sprite sheets and resize them
         run_sprite_sheet = pygame.image.load(run_sprite_sheet)
         jump_sprite_sheet = pygame.image.load(jump_sprite_sheet)
-        
-        # Resize sprite sheets for larger player sprite
-        new_width = 1 * run_sprite_sheet.get_width()  # Scale the width by 2 (change this as needed)
-        new_height = 1 * run_sprite_sheet.get_height()  # Scale the height by 2 (change this as needed)
-        run_sprite_sheet = pygame.transform.scale(run_sprite_sheet, (new_width, new_height))
-        jump_sprite_sheet = pygame.transform.scale(jump_sprite_sheet, (new_width, new_height))
         
         # Load animation frames
         self.run_frames = self.load_animation_frames(run_sprite_sheet, 8)
@@ -80,9 +80,8 @@ class Player(pygame.sprite.Sprite):
         self.rect.x = screen_width // 2 - self.rect.width // 2
         self.rect.y = screen_height - self.rect.height 
         
-        # Other player attributes...
-        self.jump_power = 30  # Adjust as needed
-        self.gravity = 1  # Adjust as needed
+        self.jump_power = 33  
+        self.gravity = 1  
         self.velocity_y = 0
         self.jump_count = 0
         self.is_stopped = False
@@ -287,7 +286,7 @@ def reset_game():
 
 # Define play function
 def play():
-    global item_spawn_timer, box_spawn_timer, obstacle_spawn_timer, donations_made, game_over
+    global item_spawn_timer, box_spawn_timer, obstacle_spawn_timer, donations_made, game_over, donations_score
 
     clock = pygame.time.Clock()
     
@@ -301,6 +300,7 @@ def play():
     # Reset game state flags and variables
     game_over = False
     donations_made = 0
+    donations_score = 0
     player.collected_items = []
     
     # Variable to track the current box the player has encountered
@@ -323,6 +323,7 @@ def play():
                     # Stop the player and donate collected items
                     player.is_stopped = True
                     donations_made += 1
+                    donations_score += len(player.collected_items)
                     player.collected_items = []  # Clear the list of collected items
                     
                     # Open the box
@@ -348,8 +349,8 @@ def play():
         # Spawn new items, boxes, and obstacles at specified intervals
         spawn_intervals = {
             'item': 2000,  # Spawn an item every 2 seconds
-            'box': 5000,   # Spawn a box every 5 seconds
-            'obstacle': 3000  # Spawn an obstacle every 3 seconds
+            'box': 8000,   # Spawn a box every 8 seconds
+            'obstacle': 6000  # Spawn an obstacle every 6 seconds
         }
 
         # Item spawn
@@ -400,7 +401,10 @@ def play():
         # Check for player-obstacle collisions and end the game if it happens
         player_obstacle_collisions = pygame.sprite.spritecollide(player, obstacle_group, False)
         if player_obstacle_collisions:
+            # Play the player out sound
+            player_out_sound.play()
             game_over = True
+
 
         # Check for collisions between player and items
         collisions = pygame.sprite.spritecollide(player, item_group, True)
@@ -419,8 +423,15 @@ def play():
         SCREEN.blit(collected_text, (10, 10))
 
         # Display the number of donations made on the right side of the screen
-        donations_text = font.render(f"Donations Made: {donations_made}", True, BLACK)
-        SCREEN.blit(donations_text, (screen_width - donations_text.get_width() - 10, 10))
+        donations_made_text = font.render(f"Donations Made: {donations_made}", True, BLACK)
+        donations_score_text = font.render(f"Donations Score: {donations_score}", True, BLACK)
+
+        # Display Donations Made at the top right corner
+        SCREEN.blit(donations_made_text, (screen_width - donations_made_text.get_width() - 10, 10))
+
+        # Display Donations Score slightly below Donations Made
+        SCREEN.blit(donations_score_text, (screen_width - donations_score_text.get_width() - 10, 50))
+
 
         # Display the number of missed donations on the right side of the screen
         
@@ -556,6 +567,7 @@ def help_screen():
         "1. Press SPACE BAR to jump.\n"
         "2. Collect items by running into them.\n"
         "3. Press S  to donate near a box.\n"
+        "4. If there are no collected items then you cannot donate.\n"
         "4. Avoid obstacles to stay alive.\n"
         "5. Keep an eye on the bottom of the screen for incoming obstacles.\n"
         "6. Reach the highest score possible!"
@@ -612,7 +624,7 @@ def help_screen():
 def main_menu():
     while True:
         # Load and scale the background image
-        bg_image = pygame.image.load("background1.jpeg")
+        bg_image = pygame.image.load("GB.jpeg")
         bg_image = pygame.transform.scale(bg_image, (screen_width, screen_height))
         SCREEN.blit(bg_image, (0, 0))
         
