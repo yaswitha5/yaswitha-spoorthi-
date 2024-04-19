@@ -349,8 +349,8 @@ def play():
         # Spawn new items, boxes, and obstacles at specified intervals
         spawn_intervals = {
             'item': 2000,  # Spawn an item every 2 seconds
-            'box': 8000,   # Spawn a box every 8 seconds
-            'obstacle': 6000  # Spawn an obstacle every 6 seconds
+            'box': 6000,   # Spawn a box every 6 seconds
+            'obstacle': 4000  # Spawn an obstacle every 4 seconds
         }
 
         # Item spawn
