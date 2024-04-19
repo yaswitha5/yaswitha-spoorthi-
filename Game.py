@@ -7,10 +7,12 @@ from button import Button
 pygame.init()
 pygame.mixer.init()
 
+base_height = 100
+
 # Screen settings
 screen_width, screen_height = 1280, 720
 SCREEN = pygame.display.set_mode((screen_width, screen_height))
-pygame.display.set_caption("Run and Collect")
+pygame.display.set_caption("collect and donation")
 
 # Load images and resize them
 background_image = pygame.image.load("background.jpeg")
@@ -64,8 +66,15 @@ music_playing = True
 class Player(pygame.sprite.Sprite):
     def __init__(self, run_sprite_sheet, jump_sprite_sheet):
         super().__init__()
+        # Load sprite sheets and resize them
         run_sprite_sheet = pygame.image.load(run_sprite_sheet)
         jump_sprite_sheet = pygame.image.load(jump_sprite_sheet)
+        
+        # Resize sprite sheets for larger player sprite
+        new_width = 1 * run_sprite_sheet.get_width()  # Scale the width by 2 (change this as needed)
+        new_height = 1 * run_sprite_sheet.get_height()  # Scale the height by 2 (change this as needed)
+        run_sprite_sheet = pygame.transform.scale(run_sprite_sheet, (new_width, new_height))
+        jump_sprite_sheet = pygame.transform.scale(jump_sprite_sheet, (new_width, new_height))
         
         # Load animation frames
         self.run_frames = self.load_animation_frames(run_sprite_sheet, 8)
@@ -78,10 +87,12 @@ class Player(pygame.sprite.Sprite):
         
         # Set starting position (adjust as needed)
         self.rect.x = screen_width // 2 - self.rect.width // 2
-        self.rect.y = screen_height - self.rect.height 
+        #self.rect.y = screen_height - self.rect.height - base_height
+        self.rect.y = 0
         
-        self.jump_power = 33  
-        self.gravity = 1  
+        # Other player attributes...
+        self.jump_power = 30  # Adjust as needed
+        self.gravity = 1  # Adjust as needed
         self.velocity_y = 0
         self.jump_count = 0
         self.is_stopped = False
@@ -104,8 +115,8 @@ class Player(pygame.sprite.Sprite):
             self.rect.y += self.velocity_y
 
         # Check for landing on the ground
-        if self.rect.y >= screen_height - self.rect.height :
-            self.rect.y = screen_height - self.rect.height 
+        if self.rect.y >= screen_height - self.rect.height - base_height:
+            self.rect.y = screen_height - self.rect.height - base_height 
             self.velocity_y = 0
             self.jump_count = 0  # Reset jump count when on the ground
 
@@ -147,7 +158,7 @@ class Item(pygame.sprite.Sprite):
         self.image = random.choice(item_images)
         self.rect = self.image.get_rect()
         self.rect.x = screen_width  # Starting x position
-        self.rect.y = random.randint( 0, screen_height - self.rect.height)  # Random y position
+        self.rect.y = random.randint(base_height, screen_height - base_height - self.rect.height)  # Random y position
 
     def update(self):
         # Move item to the left
@@ -166,7 +177,7 @@ class Box(pygame.sprite.Sprite):
         self.image = self.closed_image
         self.rect = self.image.get_rect()
         self.rect.x = screen_width  # Starting x position
-        self.rect.y = screen_height - self.rect.height  # Place box on the ground
+        self.rect.y = screen_height - base_height - self.rect.height  # Place box on the ground
         self.opened = False  # Flag to track whether the box is opened or closed
 
     def update(self):
@@ -189,7 +200,7 @@ class Obstacle(pygame.sprite.Sprite):
         
         # Calculate y-coordinate to be just above the ground
         # The y-coordinate should be such that the obstacle sits just above the base height
-        self.rect.y = screen_height - self.rect.height
+        self.rect.y = screen_height - base_height - self.rect.height
         
         self.player = player  # Reference to the player object
 
@@ -206,7 +217,6 @@ class Obstacle(pygame.sprite.Sprite):
         # Remove the obstacle if it goes off-screen
         if self.rect.x < -self.rect.width:
             self.kill()
-
 # Define a function to handle scrolling backgrounds
 def update_background():
     global background_x
@@ -432,10 +442,6 @@ def play():
         # Display Donations Score slightly below Donations Made
         SCREEN.blit(donations_score_text, (screen_width - donations_score_text.get_width() - 10, 50))
 
-
-        # Display the number of missed donations on the right side of the screen
-        
-
         # Update display
         pygame.display.flip()
 
@@ -454,7 +460,7 @@ def game_over_screen():
     # Create buttons for returning to the menu and quitting the game
     restart_button = Button(
         image=pygame.image.load("text_box.jpeg"),
-        pos=(screen_width // 2, 300),
+        pos=(screen_width // 2, 325),
         text_input="PLAY AGAIN",
         font=get_font(48),
         base_color="White",
@@ -463,17 +469,14 @@ def game_over_screen():
 
     # Display the score (number of donations made) as text
     score_text = font.render(f"Donations Made: {donations_made}", True, BLACK)
-    score_rect = score_text.get_rect(center=(screen_width // 2, 150))
+    score_rect = score_text.get_rect(center=(screen_width // 2, 200))
+
+    quotation_text = font.render(f"Happiness doesn't result from what we get, but from what we give", True, BLACK)
+    quotation_rect = quotation_text.get_rect(center=(screen_width // 2, 75))
 
     # Create a quit button
-    quit_button = Button(
-        image=pygame.image.load("text_box.jpeg"),
-        pos=(screen_width // 2, 500),
-        text_input="QUIT",
-        font=get_font(48),
-        base_color="White",
-        hovering_color="Green"
-    )
+    quit_button = Button(image=pygame.image.load("text_box.jpeg"),pos=(screen_width // 2, 500),text_input="QUIT",
+                            font=get_font(48),base_color="White",hovering_color="Green")
 
     while True:
         # Draw the background image on the screen
@@ -481,6 +484,8 @@ def game_over_screen():
 
         # Display the score (number of donations made)
         SCREEN.blit(score_text, score_rect)
+
+        SCREEN.blit(quotation_text, quotation_rect)
 
         # Draw the buttons and check for hover interactions
         restart_button.changeColor(pygame.mouse.get_pos())
