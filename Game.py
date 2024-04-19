@@ -455,7 +455,7 @@ def game_over_screen():
     restart_button = Button(
         image=pygame.image.load("text_box.jpeg"),
         pos=(screen_width // 2, 300),
-        text_input="RESTART",
+        text_input="PLAY AGAIN",
         font=get_font(48),
         base_color="White",
         hovering_color="Green"
@@ -630,7 +630,7 @@ def main_menu():
         
         MENU_MOUSE_POS = pygame.mouse.get_pos()
         
-        MENU_TEXT = get_font(100).render("RUN AND COLLECT", True, "#b68f40")
+        MENU_TEXT = get_font(100).render("COLLECT AND DONATE", True, "#b68f40")
         MENU_RECT = MENU_TEXT.get_rect(center=(screen_width // 2, 100))
         
         PLAY_BUTTON = Button(image=pygame.image.load("text_box.jpeg"), pos=(screen_width // 2, 225), 
